@@ -17,3 +17,5 @@ venv/
 .env/
 .venv/
 env/
+
+.cache_ggshield
