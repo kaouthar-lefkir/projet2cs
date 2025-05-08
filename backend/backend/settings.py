@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
+import sys
 from decouple import config
 
 
@@ -41,6 +42,9 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "PetroMonitore",
+    'rest_framework',
+    'rest_framework_simplejwt',
+    'corsheaders',
 ]
 
 MIDDLEWARE = [
@@ -51,7 +55,38 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    'corsheaders.middleware.CorsMiddleware',  # CORS middleware
 ]
+
+# Configuration pour l'authentification personnalisée
+AUTH_USER_MODEL = 'PetroMonitore.Utilisateur'
+AUTHENTICATION_BACKENDS = [
+    'PetroMonitore.authentication.UtilisateurBackend',
+]
+
+# Configuration de REST Framework
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+}
+
+
+# Configuration de Simple JWT
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': False,
+    'BLACKLIST_AFTER_ROTATION': True,
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    'USER_ID_FIELD': 'id',
+    'USER_ID_CLAIM': 'user_id',
+}
 
 ROOT_URLCONF = "backend.urls"
 
@@ -85,8 +120,21 @@ DATABASES = {
         'NAME': config('ORACLE_NAME'),
         'USER': config('ORACLE_USER'),
         'PASSWORD': config('ORACLE_PASSWORD'),
+        'TEST': {
+            'NAME': config('ORACLE_NAME'),  # Use the same name or a test-specific name
+            'CREATE_DB': False,             # Don't try to create the database
+            'CREATE_USER': False,           # Don't try to create user
+            'USER': config('ORACLE_USER'),  # Test user (same as main)
+            'PASSWORD': config('ORACLE_PASSWORD'),
+            'CREATE_DB': False,             # Don't try to create the databases
+        }
     }
 }
+
+# Add this to prevent table space issues
+if 'test' in sys.argv:
+    DATABASES['default']['TEST']['TBLSPACE'] = 'users'
+    DATABASES['default']['TEST']['TBLSPACE_TMP'] = 'temp'
 
 
 # Password validation
@@ -129,3 +177,16 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+
+
+# Configuration CORS pour permettre les requêtes depuis votre frontend React
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",  # Remplacer par l'URL de votre frontend React
+    "http://127.0.0.1:3000",
+]
+
+# Paramètres de sécurité (ajustez selon vos besoins)
+SESSION_COOKIE_SECURE = True  # Cookies sécurisés (HTTPS)
+CSRF_COOKIE_SECURE = True
+SECURE_BROWSER_XSS_FILTER = True

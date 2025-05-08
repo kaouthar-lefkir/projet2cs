@@ -1,7 +1,25 @@
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.contrib.auth.hashers import make_password, check_password
+from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 
-class Utilisateur(models.Model):
+class UtilisateurManager(BaseUserManager):
+    def create_user(self, email, password=None, **extra_fields):
+        if not email:
+            raise ValueError('The Email must be set')
+        email = self.normalize_email(email)
+        user = self.model(email=email, **extra_fields)
+        user.set_password(password)
+        user.save()
+        return user
+
+    def create_superuser(self, email, password=None, **extra_fields):
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
+        return self.create_user(email, password, **extra_fields)
+
+
+class Utilisateur(AbstractBaseUser, PermissionsMixin):
     ROLE_CHOICES = (
         ('INGENIEUR_TERRAIN', 'Ingénieur Terrain'),
         ('EXPERT', 'Expert'),
@@ -21,9 +39,37 @@ class Utilisateur(models.Model):
     date_creation = models.DateTimeField(auto_now_add=True)
     statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default='ACTIF')
     
-    def __str__(self):
+    is_staff = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = ['nom', 'prenom']
+
+    objects = UtilisateurManager()
+
+    def get_full_name(self):
         return f"{self.prenom} {self.nom}"
 
+    def get_short_name(self):
+        return self.prenom
+
+    def set_password(self, raw_password):
+        self.mot_de_passe = make_password(raw_password)
+
+    def check_password(self, raw_password):
+        return check_password(raw_password, self.mot_de_passe)
+
+    @property
+    def password(self):
+        return self.mot_de_passe
+
+    @password.setter
+    def password(self, raw_password):
+        self.set_password(raw_password)
+
+    def __str__(self):
+        return f"{self.prenom} {self.nom}"
+    
 
 class Projet(models.Model):
     STATUT_CHOICES = (
