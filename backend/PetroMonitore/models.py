@@ -154,8 +154,7 @@ class Operation(models.Model):
 
 
 class Seuil(models.Model):
-    projet = models.ForeignKey(Projet, on_delete=models.CASCADE, related_name='seuils')
-    type_seuil = models.CharField(max_length=100)
+    projet = models.ForeignKey(Operation, on_delete=models.CASCADE, related_name='seuils')
     valeur_verte = models.DecimalField(max_digits=10, decimal_places=2)
     valeur_jaune = models.DecimalField(max_digits=10, decimal_places=2)
     valeur_rouge = models.DecimalField(max_digits=10, decimal_places=2)

@@ -138,3 +138,44 @@ class ProtectedViewsTest(APITestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['email'], self.user.email)
+        
+    def test_logout(self):
+        self.authenticate_as(self.user)
+        url = reverse('logout')
+    
+    # Get the refresh token for this user
+        login_url = reverse('login')
+        login_data = {
+            'email': 'user@example.com',
+            'mot_de_passe': 'userpass'
+        }
+        login_response = self.client.post(login_url, login_data)
+        self.assertEqual(login_response.status_code, status.HTTP_200_OK, f"Login failed: {login_response.data}")
+    
+    # Verify the tokens exist in the response
+        self.assertIn('tokens', login_response.data, "No tokens in login response")
+        self.assertIn('refresh', login_response.data['tokens'], "No refresh token in login response")
+    
+        refresh_token = login_response.data['tokens']['refresh']
+    
+    # Test logout with the refresh token
+        logout_data = {'refresh': refresh_token}  # Changed key from 'refresh_token' to 'refresh'
+        response = self.client.post(url, logout_data)
+    
+    # If the test fails, print the error message for debugging
+        if response.status_code != status.HTTP_200_OK:
+            print(f"Logout failed with status {response.status_code}: {response.data}")
+        
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('message', response.data)
+    
+    def test_logout_without_token(self):
+        self.authenticate_as(self.user)
+        url = reverse('logout')
+    
+    # Test logout without providing a refresh token
+        response = self.client.post(url, {})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('error', response.data)
+    # Verify the error message
+        self.assertIn('required', response.data['error'].lower())
