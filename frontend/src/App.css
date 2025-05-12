@@ -1,6 +1,5 @@
 .App {
   text-align: center;
-   
 }
 
 .App-logo {
@@ -27,6 +26,26 @@
 
 .App-link {
   color: #61dafb;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden; /* Prevents double scrollbars */
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Fix for sidebar height */
+.sidebar-container {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
 }
 
 @keyframes App-logo-spin {

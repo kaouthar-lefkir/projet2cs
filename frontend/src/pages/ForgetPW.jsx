@@ -2,6 +2,9 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import axios from 'axios';
+import logoImage from "../images/petro-logo.png";
+import SposorImage from "../images/sponsor-logo.png";
+import BackgroundImage from "../images/petro-background.png";
 
 export default function ForgetPW() {
     const [email, setEmail] = useState("");
@@ -37,7 +40,7 @@ export default function ForgetPW() {
     return (
         <div className="min-h-screen flex items-center justify-center" 
              style={{ 
-                backgroundImage: "url('/images/petro-background.png')", 
+                backgroundImage: `url(${BackgroundImage})`, 
                 backgroundRepeat: "no-repeat",
                 backgroundPosition: "center",
                 backgroundSize: "100% 100%"
@@ -45,7 +48,7 @@ export default function ForgetPW() {
             
             {/* Logo in top right corner */}
             <div className="absolute top-4 right-4">
-                <img src="/images/petro-logo.png" alt="PetroMonitore Logo" className="h-16" />
+                <img src={logoImage} alt="PetroMonitore Logo" className="h-16" />
             </div>
             
             {/* Recovery Card */}
@@ -141,7 +144,7 @@ export default function ForgetPW() {
             
             {/* Sponsor logo in bottom right */}
             <div className="absolute bottom-4 right-4">
-                <img src="/images/sponsor-logo.png" alt="Sponsor Logo" className="h-12" />
+                <img src={SposorImage} alt="Sponsor Logo" className="h-12" />
             </div>
         </div>
     );
