@@ -2,18 +2,30 @@ from django.urls import path
 from .views import (
     EquipeProjetDetail,
     EquipeProjetListCreate,
+    HistoriqueSeuilDetailView,
+    HistoriqueSeuilListView,
     LoginView,
     OperationDetailView,
     OperationListView,
     OperationOrderingView,
     OperationProgressionView,
+    OperationStatusUpdateView,
     PhaseDetailView,
     PhaseListView,
     PhaseOrderingView,
+    PhaseProgressUpdateView,
+    PhaseStatusView,
     ProjetDetailView,
     ProjetListView,
+    ProjetProgressUpdateView,
     ProjetResponsableView,
+    ProjetStatusView,
     ProjetStatutView,
+    SeuilDetailView,
+    SeuilHistoriqueView,
+    SeuilInitialiserOperationView,
+    SeuilListCreateView,
+    SeuilOperationView,
     UserListView,
     UserDetailView,
     ChangePasswordView,
@@ -57,4 +69,24 @@ urlpatterns = [
     path('projet/<int:projet_id>/membres/', projet_membres, name='projet-membres'),
     path('affecter/', affecter_utilisateur, name='affecter-utilisateur'),
     path('desaffecter/<int:equipe_id>/', desaffecter_utilisateur, name='desaffecter-utilisateur'),
+    
+    
+    # URLs pour les seuils - vues basées sur des classes
+    path('seuils/', SeuilListCreateView.as_view(), name='seuil-list'),
+    path('seuils/<int:pk>/', SeuilDetailView.as_view(), name='seuil-detail'),
+    path('seuils/<int:pk>/historique/', SeuilHistoriqueView.as_view(), name='seuil-historique'),
+    path('operations/<int:operation_id>/seuils/', SeuilOperationView.as_view(), name='seuil-operation'),
+    path('operations/seuils/initialiser/', SeuilInitialiserOperationView.as_view(), name='seuil-initialiser-operation'),
+    
+    # URLs pour l'historique des seuils - vues basées sur des classes
+    path('historique-seuils/', HistoriqueSeuilListView.as_view(), name='historique-seuil-list'),
+    path('historique-seuils/<int:pk>/', HistoriqueSeuilDetailView.as_view(), name='historique-seuil-detail'),
+    
+    # URLs pour les opérations de statut et de progression - vues basées sur des classes
+    path('phases/<int:phase_id>/status/', PhaseStatusView.as_view(), name='phase-status'),
+    path('projets/<int:projet_id>/status/', ProjetStatusView.as_view(), name='projet-status'),
+    path('operations/<int:operation_id>/update-status/', OperationStatusUpdateView.as_view(), name='operation-update-status'),
+    path('phases/<int:phase_id>/update-progress/', PhaseProgressUpdateView.as_view(), name='phase-update-progress'),
+    path('projets/<int:projet_id>/update-progress/', ProjetProgressUpdateView.as_view(), name='projet-update-progress'),
+
 ]

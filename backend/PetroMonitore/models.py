@@ -122,6 +122,22 @@ class Phase(models.Model):
     def __str__(self):
         return f"{self.projet.nom} - {self.nom}"
     
+    def save(self, *args, **kwargs):
+        """
+        Override save method to update phase progress after saving
+        and to handle skip_update flag to avoid recursion
+        """
+        # Check if we should skip the update_phase_progress call
+        skip_update = kwargs.pop('skip_update', False)
+        
+        # Call the "real" save method
+        super().save(*args, **kwargs)
+        
+        # Only update phase progress if not explicitly skipped
+        if not skip_update:
+            from .utils import update_phase_progress
+            update_phase_progress(self.id)
+    
     class Meta:
         ordering = ['ordre']
 
@@ -154,7 +170,7 @@ class Operation(models.Model):
 
 
 class Seuil(models.Model):
-    projet = models.ForeignKey(Operation, on_delete=models.CASCADE, related_name='seuils')
+    operation = models.ForeignKey(Operation, on_delete=models.CASCADE, related_name='seuils')
     valeur_verte = models.DecimalField(max_digits=10, decimal_places=2)
     valeur_jaune = models.DecimalField(max_digits=10, decimal_places=2)
     valeur_rouge = models.DecimalField(max_digits=10, decimal_places=2)
@@ -164,7 +180,7 @@ class Seuil(models.Model):
     modifie_par = models.ForeignKey(Utilisateur, on_delete=models.SET_NULL, blank=True, null=True, related_name='seuils_modifies')
     
     def __str__(self):
-        return f"{self.projet.nom} - {self.type_seuil}"
+        return f"{self.operation.nom} - {self.type_seuil}"
 
 
 class Rapport(models.Model):

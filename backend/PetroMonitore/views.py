@@ -1,15 +1,19 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
-from rest_framework import status, generics, permissions
+from rest_framework import status, generics, permissions,viewsets, filters
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView, ListAPIView, RetrieveAPIView
 from decimal import Decimal
 from django.db.models import Avg,Sum
 from django.http import Http404  
 from django.contrib.auth import authenticate
 from django.contrib.auth.hashers import make_password
 from django.utils import timezone
-from .models import Projet, Utilisateur, Phase, Operation,EquipeProjet,HistoriqueModification
+from rest_framework.decorators import action
+from django.db import transaction
+from django.shortcuts import get_object_or_404
+from .models import Projet, Utilisateur, Phase, Operation,EquipeProjet,HistoriqueModification, Seuil
 from .serializers import (
     UserSerializer, 
     UserCreateSerializer, 
@@ -25,14 +29,27 @@ from .serializers import (
     PhaseUpdateSerializer,
     OperationSerializer, 
     OperationCreateSerializer, 
-    OperationUpdateSerializer
+    OperationUpdateSerializer,
+    SeuilSerializer, 
+    HistoriqueModificationSeuilSerializer,
+    PhaseDetailStatusSerializer,
+    ProjetDetailStatusSerializer,
+
 )
 from .permissions import IsAdminUser
 from .authentication import UtilisateurBackend
-from .utils import get_tokens_for_user 
 from django.shortcuts import get_object_or_404
 from rest_framework.decorators import api_view, permission_classes
 from django.db import transaction
+
+from .utils import (
+    update_phase_progress, 
+    update_project_costs, 
+    update_phase_costs,
+    evaluer_statut_couleur_phase,
+    evaluer_statut_couleur_projet,
+    get_tokens_for_user
+)
 
 class LoginView(APIView):
     authentication_classes = []  # No auth needed for login
@@ -1014,3 +1031,413 @@ def desaffecter_utilisateur(request, equipe_id):
         equipe.delete()
     
     return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class SeuilListCreateView(ListCreateAPIView):
+    """
+    Vue pour lister tous les seuils et en créer un nouveau
+    """
+    queryset = Seuil.objects.all()
+    serializer_class = SeuilSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['operation__nom']
+    ordering_fields = ['date_definition', 'date_modification']
+    
+    def perform_create(self, serializer):
+        """
+        Création d'un nouveau seuil avec enregistrement du créateur
+        """
+        with transaction.atomic():
+            # Enregistrer le seuil avec l'utilisateur courant comme créateur
+            seuil = serializer.save(
+                defini_par=self.request.user,
+                date_definition=timezone.now()
+            )
+            
+            # Enregistrer dans l'historique
+            HistoriqueModification.objects.create(
+                table_modifiee='Seuil',
+                id_enregistrement=seuil.id,
+                champ_modifie='création',
+                nouvelle_valeur=f"Vert: {seuil.valeur_verte}, Jaune: {seuil.valeur_jaune}, Rouge: {seuil.valeur_rouge}",
+                modifie_par=self.request.user,
+                commentaire="Création initiale du seuil"
+            )
+
+
+class SeuilDetailView(RetrieveUpdateDestroyAPIView):
+    """
+    Vue pour récupérer, modifier ou supprimer un seuil spécifique
+    """
+    queryset = Seuil.objects.all()
+    serializer_class = SeuilSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def perform_update(self, serializer):
+        """
+        Modification d'un seuil avec enregistrement des modifications
+        """
+        with transaction.atomic():
+            # Récupérer l'objet avant modification
+            ancien_seuil = Seuil.objects.get(pk=serializer.instance.pk)
+            anciennes_valeurs = {
+                'valeur_verte': ancien_seuil.valeur_verte,
+                'valeur_jaune': ancien_seuil.valeur_jaune,
+                'valeur_rouge': ancien_seuil.valeur_rouge
+            }
+            
+            # Enregistrer les modifications
+            seuil = serializer.save(
+                modifie_par=self.request.user,
+                date_modification=timezone.now()
+            )
+            
+            # Pour chaque champ modifié, créer une entrée dans l'historique
+            for champ, ancienne_valeur in anciennes_valeurs.items():
+                nouvelle_valeur = getattr(seuil, champ)
+                if ancienne_valeur != nouvelle_valeur:
+                    HistoriqueModification.objects.create(
+                        table_modifiee='Seuil',
+                        id_enregistrement=seuil.id,
+                        champ_modifie=champ,
+                        ancienne_valeur=str(ancienne_valeur),
+                        nouvelle_valeur=str(nouvelle_valeur),
+                        modifie_par=self.request.user,
+                        commentaire=f"Modification du seuil {champ}"
+                    )
+
+
+class SeuilHistoriqueView(APIView):
+    """
+    Vue pour récupérer l'historique des modifications d'un seuil spécifique
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, pk):
+        """
+        Retourne l'historique des modifications pour un seuil spécifique
+        """
+        historique = HistoriqueModification.objects.filter(
+            table_modifiee='Seuil',
+            id_enregistrement=pk
+        ).order_by('-date_modification')
+        
+        serializer = HistoriqueModificationSeuilSerializer(historique, many=True)
+        return Response(serializer.data)
+
+
+class SeuilOperationView(APIView):
+    """
+    Vue pour récupérer les seuils pour une opération donnée
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, operation_id, *args, **kwargs):
+        """
+        Retourne les seuils pour une opération donnée
+        """
+        if not operation_id:
+            return Response(
+                {"error": "Le paramètre operation_id est requis"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        try:
+            seuil = Seuil.objects.get(operation_id=operation_id)
+            serializer = SeuilSerializer(seuil)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Seuil.DoesNotExist:
+            return Response(
+                {"error": f"Aucun seuil défini pour l'opération avec ID {operation_id}"},
+                status=status.HTTP_404_NOT_FOUND
+            )   
+
+class SeuilInitialiserOperationView(APIView):
+    """
+    Vue pour initialiser les seuils pour une opération donnée
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request):
+        """
+        Initialise les seuils pour une opération donnée
+        """
+        operation_id = request.data.get('operation_id')
+        valeur_verte = request.data.get('valeur_verte')
+        valeur_jaune = request.data.get('valeur_jaune')
+        valeur_rouge = request.data.get('valeur_rouge')
+        
+        if not all([operation_id, valeur_verte, valeur_jaune, valeur_rouge]):
+            return Response(
+                {"error": "Tous les paramètres sont requis: operation_id, valeur_verte, valeur_jaune, valeur_rouge"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            operation = Operation.objects.get(pk=operation_id)
+        except Operation.DoesNotExist:
+            return Response(
+                {"error": f"Opération avec ID {operation_id} n'existe pas"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Vérifier si les seuils sont déjà définis pour cette opération
+        existing_seuil = Seuil.objects.filter(operation=operation).first()
+        if existing_seuil:
+            return Response(
+                {"error": f"Des seuils existent déjà pour cette opération. Utilisez la méthode PUT pour les modifier."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        with transaction.atomic():
+            seuil = Seuil.objects.create(
+                operation=operation,
+                valeur_verte=valeur_verte,
+                valeur_jaune=valeur_jaune,
+                valeur_rouge=valeur_rouge,
+                defini_par=request.user,
+                date_definition=timezone.now()
+            )
+            
+            HistoriqueModification.objects.create(
+                table_modifiee='Seuil',
+                id_enregistrement=seuil.id,
+                champ_modifie='création',
+                nouvelle_valeur=f"Vert: {seuil.valeur_verte}, Jaune: {seuil.valeur_jaune}, Rouge: {seuil.valeur_rouge}",
+                modifie_par=request.user,
+                commentaire="Initialisation des seuils pour l'opération"
+            )
+            
+            serializer = SeuilSerializer(seuil)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class HistoriqueSeuilListView(ListAPIView):
+    """
+    Vue pour lister l'historique des modifications de seuils
+    """
+    serializer_class = HistoriqueModificationSeuilSerializer
+    permission_classes = [IsAuthenticated]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['table_modifiee', 'champ_modifie', 'commentaire']
+    ordering_fields = ['date_modification']
+    
+    def get_queryset(self):
+        """
+        Limite l'historique aux modifications de seuils uniquement
+        """
+        return HistoriqueModification.objects.filter(
+            table_modifiee='Seuil'
+        ).order_by('-date_modification')
+
+
+class HistoriqueSeuilDetailView(RetrieveAPIView):
+    """
+    Vue pour récupérer un enregistrement d'historique spécifique
+    """
+    serializer_class = HistoriqueModificationSeuilSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """
+        Limite l'historique aux modifications de seuils uniquement
+        """
+        return HistoriqueModification.objects.filter(
+            table_modifiee='Seuil'
+        )
+        
+        
+class PhaseStatusView(APIView):
+    """
+    Vue pour récupérer les informations de statut d'une phase
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, phase_id):
+        """
+        Retourne les informations de statut pour une phase spécifique
+        """
+        try:
+            phase = Phase.objects.get(pk=phase_id)
+            
+            # Mettre à jour la progression et le coût de la phase
+            update_phase_progress(phase_id)
+            update_phase_costs(phase_id)
+            
+            # Récupérer la phase actualisée
+            phase = Phase.objects.get(pk=phase_id)
+            
+            # Sérialiser les données
+            serializer = PhaseDetailStatusSerializer(phase)
+            
+            return Response(serializer.data)
+        except Phase.DoesNotExist:
+            return Response(
+                {"error": f"Phase avec ID {phase_id} n'existe pas"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+
+class ProjetStatusView(APIView):
+    """
+    Vue pour récupérer les informations de statut d'un projet
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, projet_id):
+        """
+        Retourne les informations de statut pour un projet spécifique
+        """
+        try:
+            projet = Projet.objects.get(pk=projet_id)
+            
+            # Mettre à jour les coûts du projet
+            update_project_costs(projet_id)
+            
+            # Mettre à jour la progression pour chaque phase du projet
+            phases = projet.phases.all()
+            for phase in phases:
+                update_phase_progress(phase.id)
+                update_phase_costs(phase.id)
+            
+            # Récupérer le projet actualisé
+            projet = Projet.objects.get(pk=projet_id)
+            
+            # Sérialiser les données
+            serializer = ProjetDetailStatusSerializer(projet)
+            
+            return Response(serializer.data)
+        except Projet.DoesNotExist:
+            return Response(
+                {"error": f"Projet avec ID {projet_id} n'existe pas"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+
+class OperationStatusUpdateView(APIView):
+    """
+    Vue pour mettre à jour une opération et propager les changements
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request, operation_id):
+        """
+        Mise à jour d'une opération et propagation des changements aux phases et projets
+        """
+        from .serializers import OperationUpdateSerializer
+        
+        try:
+            operation = Operation.objects.get(pk=operation_id)
+        except Operation.DoesNotExist:
+            return Response(
+                {"error": f"Opération avec ID {operation_id} n'existe pas"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        serializer = OperationUpdateSerializer(operation, data=request.data, partial=True)
+        
+        if serializer.is_valid():
+            with transaction.atomic():
+                # Sauvegarder les modifications de l'opération
+                serializer.save()
+                
+                # Mettre à jour la phase parente
+                phase_id = operation.phase.id
+                update_phase_progress(phase_id)
+                update_phase_costs(phase_id)
+                
+                # Mettre à jour le projet parent
+                projet_id = operation.phase.projet.id
+                update_project_costs(projet_id)
+                
+                # Récupérer l'opération mise à jour
+                operation = Operation.objects.get(pk=operation_id)
+                
+                # Sérialiser avec le statut couleur
+                from .serializers import OperationStatusSerializer
+                result_serializer = OperationStatusSerializer(operation)
+                
+                return Response(result_serializer.data)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class PhaseProgressUpdateView(APIView):
+    """
+    Vue pour recalculer et mettre à jour la progression d'une phase
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request, phase_id):
+        """
+        Recalcule et met à jour la progression d'une phase
+        """
+        try:
+            phase = Phase.objects.get(pk=phase_id)
+        except Phase.DoesNotExist:
+            return Response(
+                {"error": f"Phase avec ID {phase_id} n'existe pas"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        with transaction.atomic():
+            # Mettre à jour la progression et les coûts
+            success_progress = update_phase_progress(phase_id)
+            success_costs = update_phase_costs(phase_id)
+            
+            if not (success_progress and success_costs):
+                return Response(
+                    {"error": "Erreur lors de la mise à jour de la phase"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+            
+            # Récupérer la phase mise à jour
+            phase = Phase.objects.get(pk=phase_id)
+            
+            # Sérialiser avec le statut couleur
+            serializer = PhaseDetailStatusSerializer(phase)
+            
+            return Response(serializer.data)
+
+
+class ProjetProgressUpdateView(APIView):
+    """
+    Vue pour recalculer et mettre à jour la progression et les coûts d'un projet
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def post(self, request, projet_id):
+        """
+        Recalcule et met à jour la progression et les coûts d'un projet
+        """
+        try:
+            projet = Projet.objects.get(pk=projet_id)
+        except Projet.DoesNotExist:
+            return Response(
+                {"error": f"Projet avec ID {projet_id} n'existe pas"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        with transaction.atomic():
+            # Mettre à jour les coûts du projet
+            success_costs = update_project_costs(projet_id)
+            
+            if not success_costs:
+                return Response(
+                    {"error": "Erreur lors de la mise à jour des coûts du projet"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+            
+            # Mettre à jour toutes les phases du projet
+            phases = projet.phases.all()
+            for phase in phases:
+                update_phase_progress(phase.id)
+                update_phase_costs(phase.id)
+            
+            # Récupérer le projet mis à jour
+            projet = Projet.objects.get(pk=projet_id)
+            
+            # Sérialiser avec le statut couleur
+            serializer = ProjetDetailStatusSerializer(projet)
+            
+            return Response(serializer.data)
