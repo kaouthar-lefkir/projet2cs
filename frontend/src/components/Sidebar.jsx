@@ -26,18 +26,18 @@ const Sidebar = ({ role }) => {
       { label: "Dashboard", icon: <RiDashboardLine className="text-xl" />, path: "/dashboard" },
       { label: "Details", icon: <RiFileList3Line className="text-xl" />, path: "/details" },
       { label: "Phases", icon: <RiTimeLine className="text-xl" />, path: "/phases/manager" },
-      { label: "Reports", icon: <RiFileList3Line className="text-xl" />, path: "/reports" },
+      { label: "Reports", icon: <RiFileList3Line className="text-xl" />, path: "/reports/manager" },
       { label: "Project Team", icon: <RiTeamLine className="text-xl" />, path: "/team/manager" }
     ],
     ingenieur: [
-      { label: "Rapport", icon: <RiFileList3Line className="text-xl" />, path: "/reports" },
+      { label: "Rapport", icon: <RiFileList3Line className="text-xl" />, path: "/reports/ingenieur" },
       { label: "Profile", icon: <RiUserLine className="text-xl" />, path: "/profile" }
     ],
     expert: [
       { label: "Dashboard", icon: <RiDashboardLine className="text-xl" />, path: "/dashboard" },
       { label: "Details", icon: <RiFileList3Line className="text-xl" />, path: "/details" },
       { label: "Phases", icon: <RiTimeLine className="text-xl" />, path: "/phases/expert" },
-      { label: "Reports", icon: <RiFileList3Line className="text-xl" />, path: "/reports" },
+      { label: "Reports", icon: <RiFileList3Line className="text-xl" />, path: "/reports/expert" },
       { label: "Project Team", icon: <RiTeamLine className="text-xl" />, path: "/team/expert" }
     ],
   };

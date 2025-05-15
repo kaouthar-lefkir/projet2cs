@@ -33,7 +33,7 @@ export default function LoginPage() {
                 prenom: "John",
                 email: email,
                 mot_de_passe: "", // Don't store actual passwords in localStorage
-                role: "manager", // This will come from your database
+                role: "expert", // This will come from your database
                 date_creation: new Date().toISOString(),
                 statut: "actif"
             };

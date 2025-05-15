@@ -414,10 +414,28 @@ const ChooseProject = () => {
     */
   }, []);
 
-  const handleProjectClick = (project) => {
-    // Navigate to dashboard with the selected project data (using state)
-    navigate(`/dashboard/${project.id}`, { state: { projectData: project } });
-  };
+const handleProjectClick = (project) => {
+  const user = JSON.parse(localStorage.getItem("utilisateur"));
+  if (!user) {
+    navigate('/login');
+    return;
+  }
+
+  // Navigate based on role
+  switch(user.role) {
+    case 'expert':
+      navigate('/dashboard', { state: { projectData: project } });
+      break;
+    case 'ingenieur':
+      navigate('/reports/ingenieur', { state: { projectData: project } });
+      break;
+    case 'manager':
+      navigate('/dashboard', { state: { projectData: project } }); // or another route for managers
+      break;
+    default:
+      navigate('/dashboard', { state: { projectData: project } });
+  }
+};
 
   // Filter projects based on search term and filter option
   const filteredProjects = projects.filter(project => {

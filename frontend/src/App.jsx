@@ -11,7 +11,7 @@ import Sidebar from "./components/Sidebar";
 import Login from "./pages/Login";
 import "./App.css";
 import ForgotPasswordPage from "./pages/ForgetPW";
-import Dashboard from "./pages/Dashboard"
+import Dashboard from "./pages/Dashboard";
 import ForgetPW from "./pages/ForgetPW";
 import ChooseProjectManager from './pages/ChooseProjectManager';
 import ChooseProject from './pages/ChooseProject';
@@ -25,11 +25,16 @@ import Rapport from "./pages/Rapport";
 import RapportExp from "./pages/RapportExp";
 import RapportMan from "./pages/RapportMan";
 
-// Protected route component with sidebar handling
-const ProtectedRoute = ({ children, hideSidebar = false }) => {
+// Protected route component with role checking
+const ProtectedRoute = ({ children, hideSidebar = false, allowedRoles = [] }) => {
   const utilisateur = JSON.parse(localStorage.getItem("utilisateur"));
   
   if (!utilisateur) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  // Check if user's role is allowed (if allowedRoles is specified)
+  if (allowedRoles.length > 0 && !allowedRoles.includes(utilisateur.role)) {
     return <Navigate to="/login" replace />;
   }
   
@@ -60,8 +65,11 @@ function AppContent() {
     location.pathname.startsWith(path)
   );
   
-  // Show sidebar if user exists and current path is not in hideSidebarPaths
-  const showSidebar = utilisateur && !isHiddenPath;
+  // Valid roles that should see the sidebar
+  const validRoles = ['manager', 'expert', 'ingenieur'];
+  
+  // Show sidebar if user exists, has a valid role, and current path is not in hideSidebarPaths
+  const showSidebar = utilisateur && validRoles.includes(utilisateur?.role) && !isHiddenPath;
   
   return (
     <div className="flex min-h-screen w-full bg-gray-100">
@@ -73,21 +81,21 @@ function AppContent() {
           <Route path="/login" element={<Login />} />
           <Route path="/forgetpassword" element={<ForgotPasswordPage />} />
           
-          {/* Protected routes */}
+          {/* Protected routes with role-based access */}
           <Route path="/dashboard" element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['manager', 'expert']}>
               <Dashboard />
             </ProtectedRoute>
           }/>
           
           <Route path="/chooseprojectmanager" element={
-            <ProtectedRoute hideSidebar>
+            <ProtectedRoute hideSidebar allowedRoles={['manager']}>
               <ChooseProjectManager />
             </ProtectedRoute>
           }/>
           
           <Route path="/chooseproject" element={
-            <ProtectedRoute hideSidebar>
+            <ProtectedRoute hideSidebar allowedRoles={['expert', 'ingenieur']}>
               <ChooseProject />
             </ProtectedRoute>
           }/>
@@ -98,41 +106,50 @@ function AppContent() {
             </ProtectedRoute>
           } />
           
-          <Route path="/reports" element={
-            <ProtectedRoute>
+          <Route path="/reports/ingenieur" element={
+            <ProtectedRoute allowedRoles={['ingenieur']}>
               <Rapport/>
             </ProtectedRoute>
           } />
           
+          <Route path="/reports/manager" element={
+            <ProtectedRoute allowedRoles={['manager']}>
+              <RapportMan/>
+            </ProtectedRoute>
+          } />
           
-
+          <Route path="/reports/expert" element={
+            <ProtectedRoute allowedRoles={['expert']}>
+              <RapportExp/>
+            </ProtectedRoute>
+          } />
           
           <Route path="/team/expert" element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['expert']}>
               <ProjectTeam />
             </ProtectedRoute>
           } />
           
           <Route path="/team/manager" element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['manager']}>
               <ProjectTeamManager />
             </ProtectedRoute>
           } />
           
           <Route path="/profile" element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['manager', 'expert', 'ingenieur']}>
               <ProfilePageIngenieur userId={utilisateur?.id} />
             </ProtectedRoute>
           } />
           
           <Route path="/phases/expert" element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['expert']}>
               <PhasesAndOperations />
             </ProtectedRoute>
           } />
           
           <Route path="/phases/manager" element={
-            <ProtectedRoute>
+            <ProtectedRoute allowedRoles={['manager']}>
               <OperationsContent />
             </ProtectedRoute>
           } />

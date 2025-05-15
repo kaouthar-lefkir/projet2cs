@@ -418,7 +418,7 @@ const ChooseProjectManager = () => {
 
   const handleProjectClick = (project) => {
     // Navigate to dashboard with the selected project data (using state)
-    navigate(`/dashboard/${project.id}`, { state: { projectData: project } });
+    navigate(`/dashboard`, { state: { projectData: project } });
   };
 
   // Filter projects based on search term and filter option
