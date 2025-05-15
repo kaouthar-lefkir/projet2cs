@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import path, include
 from .views import (
     EquipeProjetDetail,
     EquipeProjetListCreate,
@@ -88,5 +88,8 @@ urlpatterns = [
     path('operations/<int:operation_id>/update-status/', OperationStatusUpdateView.as_view(), name='operation-update-status'),
     path('phases/<int:phase_id>/update-progress/', PhaseProgressUpdateView.as_view(), name='phase-update-progress'),
     path('projets/<int:projet_id>/update-progress/', ProjetProgressUpdateView.as_view(), name='projet-update-progress'),
+    
+    #dashboard urls 
+    path('dashboard/', include('PetroMonitore.dashboard.urls')),
 
 ]

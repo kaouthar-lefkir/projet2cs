@@ -47,8 +47,15 @@ class Utilisateur(AbstractBaseUser, PermissionsMixin):
 
     objects = UtilisateurManager()
 
+
+    def get_id(self):
+        return self.id
+    
     def get_full_name(self):
         return f"{self.prenom} {self.nom}"
+
+    def get_role(self):
+        return self.role
 
     def get_short_name(self):
         return self.prenom
