@@ -1,6 +1,6 @@
 // LoginPage.jsx
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { GoogleLogin } from '@react-oauth/google';
 import axios from 'axios';
 import logoImage from "../images/petro-logo.png";
@@ -9,9 +9,118 @@ import BackgroundImage from "../images/petro-background.png";
 
 export default function LoginPage() {
     const [showPassword, setShowPassword] = useState(false);
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const [error, setError] = useState("");
+    const navigate = useNavigate();
 
     const togglePasswordVisibility = () => {
         setShowPassword(!showPassword);
+    };
+
+    const handleLogin = async (e) => {
+        e.preventDefault();
+        setError("");
+        
+        try {
+            // For now, we'll simulate a login response
+            // Later, you can replace this with an actual API call using axios
+            
+            // Simulate API response
+            const utilisateur = {
+                id: 123,
+                nom: "Doe",
+                prenom: "John",
+                email: email,
+                mot_de_passe: "", // Don't store actual passwords in localStorage
+                role: "manager", // This will come from your database
+                date_creation: new Date().toISOString(),
+                statut: "actif"
+            };
+            
+            // Store user in localStorage
+            localStorage.setItem("utilisateur", JSON.stringify(utilisateur));
+            
+            // Navigate based on role
+            if (utilisateur.role === "manager") {
+                navigate("/chooseprojectmanager");
+            } else {
+                navigate("/chooseproject");
+            }
+            
+            /* When integrating with real API:
+            const response = await axios.post(
+                "http://yourapiurl.com/api/login",
+                { email, password },
+                { headers: { "Content-Type": "application/json" } }
+            );
+            
+            if (response.data.success) {
+                localStorage.setItem("utilisateur", JSON.stringify(response.data.utilisateur));
+                
+                if (response.data.utilisateur.role === "manager") {
+                    navigate("/chooseprojectmanager");
+                } else {
+                    navigate("/chooseproject");
+                }
+            }
+            */
+            
+        } catch (err) {
+            console.error("Login error:", err);
+            setError("Failed to login. Please check your credentials.");
+        }
+    };
+
+    const handleGoogleSuccess = async (credentialResponse) => {
+        const { credential } = credentialResponse;
+        if (!credential) return;
+
+        try {
+            // For now, simulate a response
+            // Later, replace with actual API call
+            const utilisateur = {
+                id: 456,
+                nom: "Google",
+                prenom: "User",
+                email: "google@example.com",
+                mot_de_passe: "",
+                role: "manager", // This will come from your database after Google auth
+                date_creation: new Date().toISOString(),
+                statut: "actif"
+            };
+            
+            // Store user in localStorage
+            localStorage.setItem("utilisateur", JSON.stringify(utilisateur));
+            
+            // Navigate based on role
+            if (utilisateur.role === "manager") {
+                navigate("/chooseprojectmanager");
+            } else {
+                navigate("/chooseproject");
+            }
+            
+            /* When integrating with real API:
+            const response = await axios.post(
+                "http://localhost:8000/api/google-login/",
+                { token: credential },
+                { headers: { "Content-Type": "application/json" } }
+            );
+
+            if (response.data.success) {
+                localStorage.setItem("utilisateur", JSON.stringify(response.data.utilisateur));
+                
+                if (response.data.utilisateur.role === "manager") {
+                    navigate("/chooseprojectmanager");
+                } else {
+                    navigate("/chooseproject");
+                }
+            }
+            */
+        } catch (err) {
+            console.error("Authentication error:", err);
+            setError("Google authentication failed");
+        }
     };
 
     return (
@@ -25,7 +134,7 @@ export default function LoginPage() {
             
             {/* Logo in top right corner */}
             <div className="absolute top-4 right-4">
-                <img src={logoImage } alt="PetroMonitore Logo" className="h-16" />
+                <img src={logoImage} alt="PetroMonitore Logo" className="h-16" />
             </div>
             
             {/* Login Card */}
@@ -34,19 +143,33 @@ export default function LoginPage() {
                     <h1 className="text-2xl font-medium text-gray-800">Sign In</h1>
                 </div>
                 
-                <form className="space-y-6">
+                {error && (
+                    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                        {error}
+                    </div>
+                )}
+                
+                <form className="space-y-6" onSubmit={handleLogin}>
                     {/* Email Input */}
                     <div className="relative">
                         <input
                             type="email"
                             placeholder="Enter Email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
                             className="w-full bg-gray-100 text-gray-800 rounded-md px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                            required
                         />
-                        <span className="absolute right-3 top-3 text-gray-400 cursor-pointer">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-5 h-5">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </span>
+                        {email && (
+                            <span 
+                                className="absolute right-3 top-3 text-gray-400 cursor-pointer"
+                                onClick={() => setEmail("")}
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-5 h-5">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </span>
+                        )}
                     </div>
                     
                     {/* Password Input */}
@@ -54,9 +177,15 @@ export default function LoginPage() {
                         <input
                             type={showPassword ? "text" : "password"}
                             placeholder="••••••••"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
                             className="w-full bg-gray-100 text-gray-800 rounded-md px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                            required
                         />
-                        <span className="absolute right-3 top-3 text-gray-400 cursor-pointer" onClick={togglePasswordVisibility}>
+                        <span 
+                            className="absolute right-3 top-3 text-gray-400 cursor-pointer" 
+                            onClick={togglePasswordVisibility}
+                        >
                             {showPassword ? (
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-5 h-5">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
@@ -97,33 +226,7 @@ export default function LoginPage() {
                     <div className="flex justify-center">
                         <GoogleLogin
                             clientId="318367454563-v857090khdr2rk94jff2apmh0ifq7irh.apps.googleusercontent.com"
-                            onSuccess={async (credentialResponse) => {
-                                const { credential } = credentialResponse;
-                                if (!credential) return;
-
-                                try {
-                                    const response = await axios.post(
-                                        "http://localhost:8000/api/google-login/",
-                                        { token: credential },
-                                        { headers: { "Content-Type": "application/json" } }
-                                    );
-
-                                    const data = response.data;
-                                    console.log("Backend response:", data);
-
-                                    if (data.success) {
-                                        localStorage.setItem("user", JSON.stringify(data));
-                                        
-                                        if (data.user_type === "rh") {
-                                            window.location.href = "/rh/dashboard";
-                                        } else {
-                                            window.location.href = "/employee/demande";
-                                        }
-                                    }
-                                } catch (err) {
-                                    console.error("Authentication error:", err.response?.data || err.message);
-                                }
-                            }}
+                            onSuccess={handleGoogleSuccess}
                             onError={() => {
                                 console.error("Google authentication failed");
                             }}

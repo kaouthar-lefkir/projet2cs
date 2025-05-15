@@ -30,7 +30,7 @@ const Sidebar = ({ role }) => {
       { label: "Project Team", icon: <RiTeamLine className="text-xl" />, path: "/team/manager" }
     ],
     ingenieur: [
-      { label: "Rapport", icon: <RiFileList3Line className="text-xl" />, path: "/rapport" },
+      { label: "Rapport", icon: <RiFileList3Line className="text-xl" />, path: "/reports" },
       { label: "Profile", icon: <RiUserLine className="text-xl" />, path: "/profile" }
     ],
     expert: [
