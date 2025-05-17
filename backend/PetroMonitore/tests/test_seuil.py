@@ -348,7 +348,7 @@ class SeuilListCreateViewTestCase(APITestCase):
     def test_ordering_filter(self):
         """Test le tri des résultats"""
         # Créer un second seuil avec une date différente
-        Seuil.objects.create(
+        seuil2 = Seuil.objects.create(
             operation=self.operation2,
             valeur_verte=Decimal('15.00'),
             valeur_jaune=Decimal('25.00'),
@@ -356,6 +356,28 @@ class SeuilListCreateViewTestCase(APITestCase):
             defini_par=self.user,
             date_definition=timezone.now() + timezone.timedelta(days=1)
         )
+        
+        # Récupérer les IDs pour une comparaison plus fiable
+        seuil1_id = self.seuil.id
+        operation1_id = self.operation1.id
+        operation2_id = self.operation2.id
+        
+        # Tri ascendant
+        response = self.client.get(f"{self.list_url}?ordering=date_definition")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 2)
+        
+        # Vérifier que le seuil lié à operation1 est bien le premier dans le résultat
+        self.assertEqual(response.data[0]['id'], seuil1_id)
+        self.assertEqual(response.data[0]['operation'], operation1_id)
+        
+        # Tri descendant
+        response = self.client.get(f"{self.list_url}?ordering=-date_definition")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        # Vérifier que le seuil lié à operation2 est bien le premier dans le résultat
+        self.assertEqual(response.data[0]['id'], seuil2.id)
+        self.assertEqual(response.data[0]['operation'], operation2_id)
         
         # Tri ascendant
         response = self.client.get(f"{self.list_url}?ordering=date_definition")

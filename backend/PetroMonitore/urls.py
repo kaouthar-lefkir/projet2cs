@@ -91,5 +91,12 @@ urlpatterns = [
     
     #dashboard urls 
     path('dashboard/', include('PetroMonitore.dashboard.urls')),
+    
+    #url pour la gestion des problèmes
+    path('problems/', include('PetroMonitore.problems.urls')), 
+    
+    
+    # URLs spécifiques aux solutions
+    path('solutions/', include('PetroMonitore.problems.solution_urls')),
 
 ]

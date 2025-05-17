@@ -9,11 +9,12 @@ from django.db.models import Avg,Sum
 from django.http import Http404  
 from django.contrib.auth import authenticate
 from django.contrib.auth.hashers import make_password
+from rest_framework.parsers import MultiPartParser
 from django.utils import timezone
 from rest_framework.decorators import action
 from django.db import transaction
 from django.shortcuts import get_object_or_404
-from .models import Projet, Utilisateur, Phase, Operation,EquipeProjet,HistoriqueModification, Seuil
+from .models import Projet, Utilisateur, Phase, Operation,EquipeProjet,HistoriqueModification, Seuil,Rapport
 from .serializers import (
     UserSerializer, 
     UserCreateSerializer, 
@@ -34,7 +35,6 @@ from .serializers import (
     HistoriqueModificationSeuilSerializer,
     PhaseDetailStatusSerializer,
     ProjetDetailStatusSerializer,
-
 )
 from .permissions import IsAdminUser
 from .authentication import UtilisateurBackend
@@ -1441,3 +1441,4 @@ class ProjetProgressUpdateView(APIView):
             serializer = ProjetDetailStatusSerializer(projet)
             
             return Response(serializer.data)
+        

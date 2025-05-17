@@ -208,37 +208,56 @@ def creer_alerte_seuil(operation, statut_precedent, statut_actuel):
 def calculate_project_progress(project_id):
     """
     Calcule la progression globale d'un projet basée sur la progression de ses phases
-    
-    Args:
-        project_id: L'identifiant du projet
-        
-    Returns:
-        La progression calculée (valeur entre 0 et 100)
     """
     from django.db.models import Avg
+    from decimal import Decimal
     from .models import Projet, Phase
+    import logging
+    
+    logger = logging.getLogger(__name__)
     
     try:
+        # 1. Get the project
         projet = Projet.objects.get(pk=project_id)
-        phases = projet.phases.all()
+        
+        # 2. Get all phases
+        phases = Phase.objects.filter(projet_id=project_id)
         
         if not phases.exists():
-            return 0
+            return Decimal('0')
         
-        # Si toutes les phases ont un budget défini, on utilise une moyenne pondérée par budget
+        # Collect phase progressions
+        phase_progresses = []
+        for phase in phases:
+            phase_progresses.append(phase.progression or Decimal('0'))
+        
+        # 3. Check phases with budget
         phases_with_budget = phases.exclude(budget_alloue__isnull=True).exclude(budget_alloue=0)
-        if phases_with_budget.count() == phases.count():
-            # Moyenne pondérée par le budget
+        
+        # 4. Try weighted average if all phases have budget
+        if phases_with_budget.count() == phases.count() and phases_with_budget.count() > 0:
             total_budget = sum(phase.budget_alloue for phase in phases)
+            
             if total_budget > 0:
-                progress = sum((phase.progression * phase.budget_alloue) for phase in phases) / total_budget
+                weighted_sum = sum((phase.progression * phase.budget_alloue) for phase in phases)
+                progress = weighted_sum / total_budget
                 return round(progress, 2)
         
-        # Sinon, utiliser une moyenne simple
-        progress = phases.aggregate(avg_progress=Avg('progression'))['avg_progress'] or 0
+        # 5. Calculate direct average from our collected values
+        if phase_progresses:
+            avg_progress = sum(phase_progresses) / len(phase_progresses)
+            return round(avg_progress, 2)
+        
+        # 6. Fall back to simple average via Django ORM
+        avg_result = phases.aggregate(avg_progress=Avg('progression'))
+        progress = avg_result['avg_progress'] or Decimal('0')
         return round(progress, 2)
+        
     except Projet.DoesNotExist:
-        return 0
+        return Decimal('0')
+    except Exception as e:
+        logger.error(f"Unexpected error calculating progress: {str(e)}", exc_info=True)
+        return Decimal('0')
 
 def evaluer_statut_couleur_phase(phase):
     """

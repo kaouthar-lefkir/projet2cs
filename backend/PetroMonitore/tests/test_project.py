@@ -5,6 +5,8 @@ from rest_framework import status
 from django.utils import timezone
 from decimal import Decimal
 from datetime import timedelta
+import logging
+
 
 from PetroMonitore.models import Projet, Utilisateur, Phase, Operation, EquipeProjet
 from PetroMonitore.serializers import ProjetSerializer, ProjetDetailSerializer
@@ -20,6 +22,9 @@ class ProjetManagementTestCase(TestCase):
         """
         Configuration initiale pour les tests
         """
+        # Enable debug logging for tests
+        logging.basicConfig(level=logging.DEBUG)
+        self.logger = logging.getLogger(__name__)
         # Création des utilisateurs avec différents rôles
         self.top_management = Utilisateur.objects.create(
             email='top@example.com', 
@@ -137,8 +142,8 @@ class ProjetManagementTestCase(TestCase):
         """
         Test le calcul de la progression d'un projet
         """
-        # Création de phases avec différentes progressions
-        Phase.objects.create(
+        # Création de phases avec différentes progressions et enregistrement direct dans la base de données
+        phase1 = Phase.objects.create(
             projet=self.projet,
             nom='Phase 1',
             progression=Decimal('50.00'),
@@ -147,7 +152,8 @@ class ProjetManagementTestCase(TestCase):
             statut='EN_COURS',
             ordre=1  # Ajout de l'ordre requis
         )
-        Phase.objects.create(
+        
+        phase2 = Phase.objects.create(
             projet=self.projet,
             nom='Phase 2',
             progression=Decimal('75.00'),
@@ -157,11 +163,13 @@ class ProjetManagementTestCase(TestCase):
             ordre=2  # Ajout de l'ordre requis
         )
         
+        # Forcer la mise à jour des progressions
+        Phase.objects.filter(id=phase1.id).update(progression=Decimal('50.00'))
+        Phase.objects.filter(id=phase2.id).update(progression=Decimal('75.00'))
+        
         # Calculer la progression du projet
         progress = calculate_project_progress(self.projet.id)
         
         # Vérifier que la progression est correcte
-        # (50 + 75) / 2 = 62.5
+        # (50 + 75) / 2
         self.assertEqual(progress, Decimal('62.50'))
-
-    # Les autres méthodes de test restent les mêmes que dans la version précédente

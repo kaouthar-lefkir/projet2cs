@@ -189,3 +189,21 @@ CORS_ALLOWED_ORIGINS = [
 SESSION_COOKIE_SECURE = True  # Cookies sécurisés (HTTPS)
 CSRF_COOKIE_SECURE = True
 SECURE_BROWSER_XSS_FILTER = True
+
+
+# settings.py (or test settings)
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'PetroMonitore': {  # Your app name
+            'handlers': ['console'],
+            'level': 'DEBUG',
+        },
+    },
+}

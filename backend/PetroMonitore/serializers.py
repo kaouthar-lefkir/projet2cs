@@ -452,5 +452,3 @@ class ProjetDetailStatusSerializer(serializers.ModelSerializer):
         from .utils import calculate_project_progress
         return calculate_project_progress(obj.id)
     
-    
-    
