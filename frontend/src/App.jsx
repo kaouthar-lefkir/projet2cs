@@ -24,6 +24,7 @@ import OperationsContent from "./pages/PhasesAndOperationsManager";
 import Rapport from "./pages/Rapport";
 import RapportExp from "./pages/RapportExp";
 import RapportMan from "./pages/RapportMan";
+import AjouterRapport from "./pages/AjouterRapport";
 
 // Protected route component with role checking
 const ProtectedRoute = ({ children, hideSidebar = false, allowedRoles = [] }) => {
@@ -91,6 +92,11 @@ function AppContent() {
           <Route path="/chooseprojectmanager" element={
             <ProtectedRoute hideSidebar allowedRoles={['manager']}>
               <ChooseProjectManager />
+            </ProtectedRoute>
+          }/>
+          <Route path="/add-rapport" element={
+            <ProtectedRoute>
+              <AjouterRapport/>
             </ProtectedRoute>
           }/>
           
