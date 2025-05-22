@@ -25,3 +25,8 @@ intg.txt
 .coverage
 
 htmlcov/
+
+
+logs/
+celerybeat-schedule
+celerybeat-schedule.*

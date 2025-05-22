@@ -37,6 +37,7 @@ from .views import (
 )
 
 urlpatterns = [
+    #login and user management
     path('auth/login/', LoginView.as_view(), name='login'),
     path('auth/logout/', LogoutView.as_view(), name='logout'),  
     path('users/', UserListView.as_view(), name='user-list'),
@@ -98,5 +99,10 @@ urlpatterns = [
     
     # URLs spécifiques aux solutions
     path('solutions/', include('PetroMonitore.problems.solution_urls')),
+    
+    
+    #URLS pour la gestion des alertes
+    path('alerts/', include('PetroMonitore.alerts.urls')),
+
 
 ]
